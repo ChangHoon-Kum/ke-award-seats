@@ -16,6 +16,7 @@
       --f: #f2c14e; --f-bg: #3a3017; --p: #7fb0ff; --p-bg: #1c2c47; --u: #a7bdd3; --u-bg: #26303c; --weekend: #ff8a7a; }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--ink);
     font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; }
   header { padding: 20px 16px 8px; max-width: 1400px; margin: 0 auto; }
@@ -77,6 +78,23 @@
   .btn { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; text-decoration: none; }
   .btn.primary { background: var(--ink); color: var(--card); border-color: var(--ink); }
   @media (max-width: 600px) { .grid th.city { min-width: 92px; padding: 6px 8px; } main, header { padding-left: 10px; padding-right: 10px; } }
+  .cities { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin-top: 16px; }
+  .city-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .city-card h3 { margin: 0 0 8px; font-size: 15px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .city-card h3 small { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .dir { padding: 6px 0; border-top: 1px solid var(--line); }
+  .dir:first-of-type { border-top: 0; }
+  .dir-title { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .cls-line { display: flex; gap: 8px; align-items: flex-start; padding: 3px 0; font-size: 13px; }
+  .cls-line .tag { flex: none; margin-top: 2px; }
+  .cls-line .cnt { flex: none; color: var(--muted); font-size: 12px; min-width: 34px; margin-top: 1px; }
+  .cls-line .dates { line-height: 1.6; }
+  .cls-line .dates b { font-weight: 600; margin-right: 3px; }
+  .cls-line .dates span.m { margin-right: 10px; white-space: nowrap; }
+  .nothing { color: var(--muted); font-size: 12px; }
+  .region-title { font-size: 16px; margin: 22px 0 0; }
+  .none-list { padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .none-list span { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 13px; color: var(--muted); }
   .note { color: var(--muted); font-size: 12px; margin-top: 18px; line-height: 1.7; }
 </style>
 </head>
@@ -88,15 +106,29 @@
 </header>
 <main>
   <div class="bar" role="toolbar" aria-label="보기 설정">
+    <div class="seg" id="view" aria-label="보기 방식"></div>
     <div class="seg" id="region" aria-label="지역"></div>
-    <div id="classes" style="display:flex;gap:6px" aria-label="좌석"></div>
-    <div class="month">
+    <div id="classes" style="display:flex;gap:6px;flex-wrap:wrap" aria-label="좌석"></div>
+    <div class="month" id="monthNav">
       <button id="prev" aria-label="이전 달">‹</button>
       <strong id="monthLabel">-</strong>
       <button id="next" aria-label="다음 달">›</button>
     </div>
   </div>
 
+  <div id="summaryView">
+    <div id="summary"></div>
+    <section class="card" id="noneCard">
+      <h2><span>선택한 좌석이 없는 도시</span><small>향후 12개월 동안 가는 편·오는 편 모두 없음</small></h2>
+      <div class="none-list" id="noneList"></div>
+    </section>
+    <section class="card" id="missingCard" hidden>
+      <h2><span>아직 수집하지 않은 도시</span><small>다음 전체 수집 후 표시돼요</small></h2>
+      <div class="none-list" id="missingList"></div>
+    </section>
+  </div>
+
+  <div id="calendarView" hidden>
   <section class="card" id="outCard">
     <h2><span>가는 편 · 인천 출발</span><small id="outSummary"></small></h2>
     <div class="scroll" id="outGrid"></div>
@@ -112,6 +144,7 @@
     <span><span class="tag P">P</span> 프레스티지 보너스</span>
     <span><span class="tag U">U</span> 프레스티지 좌석승급</span>
     <span>— 운항하지만 선택한 좌석 없음 · 빈칸은 운항편 없음</span>
+  </div>
   </div>
 
   <section class="card">
@@ -140,12 +173,12 @@
   const WD = ['일', '월', '화', '수', '목', '금', '토'];
   const store = (() => { try { const s = window.localStorage; s.setItem('_t', '1'); s.removeItem('_t'); return s; } catch { return null; } })();
   const saved = (() => { try { return JSON.parse(store?.getItem('ke-board') || '{}'); } catch { return {}; } })();
-  const state = { region: saved.region || 'all', classes: saved.classes || ['F', 'P'], monthIdx: 0 };
+  const state = { view: saved.view || 'summary', region: saved.region || 'all', classes: saved.classes || ['F', 'P'], monthIdx: 0 };
   let data = null, changes = [];
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const save = () => { try { store?.setItem('ke-board', JSON.stringify({ region: state.region, classes: state.classes })); } catch {} };
+  const save = () => { try { store?.setItem('ke-board', JSON.stringify({ view: state.view, region: state.region, classes: state.classes })); } catch {} };
   const fmtYM = (ym) => `${ym.slice(0, 4)}년 ${+ym.slice(4, 6)}월`;
   const fmtD = (d) => { const dt = new Date(Date.UTC(+d.slice(0, 4), +d.slice(4, 6) - 1, +d.slice(6, 8))); return `${+d.slice(4, 6)}/${+d.slice(6, 8)}(${WD[dt.getUTCDay()]})`; };
   const kst = (iso) => new Date(iso).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -154,7 +187,77 @@
     return data.regions.filter((r) => state.region === 'all' || r.id === state.region).flatMap((r) => r.destinations);
   }
 
+  // Sorted YYYYMMDD list -> [{ ym, text: "2, 4–6, 11", n }] grouped by month, consecutive days merged.
+  function compressDates(dates) {
+    const byMonth = new Map();
+    for (const d of dates) {
+      const ym = d.slice(0, 6);
+      if (!byMonth.has(ym)) byMonth.set(ym, []);
+      byMonth.get(ym).push(+d.slice(6));
+    }
+    return [...byMonth].map(([ym, days]) => {
+      const parts = [];
+      let s = days[0], p = days[0];
+      for (const x of [...days.slice(1), null]) {
+        if (x === p + 1) { p = x; continue; }
+        parts.push(s === p ? `${s}` : p === s + 1 ? `${s}, ${p}` : `${s}–${p}`);
+        s = p = x;
+      }
+      return { ym, text: parts.join(', '), n: days.length };
+    });
+  }
+  function monthName(ym) {
+    const curY = data.today.slice(0, 4);
+    return (ym.slice(0, 4) !== curY ? `${ym.slice(2, 4)}년 ` : '') + `${+ym.slice(4, 6)}월`;
+  }
+  function openDates(route, cls) {
+    if (!route) return null;
+    return Object.entries(route.days || {})
+      .filter(([d, fl]) => d >= data.today && fl.some((f) => f[2].includes(cls)))
+      .map(([d]) => d).sort();
+  }
+
+  function renderSummary() {
+    const shown = state.classes.filter((c) => ['F', 'P', 'U'].includes(c));
+    const regions = data.regions.filter((r) => state.region === 'all' || r.id === state.region);
+    const none = [], missing = [];
+    let html = '';
+    for (const region of regions) {
+      let cards = '';
+      for (const dest of region.destinations) {
+        const out = data.routes[`${data.origin}-${dest.code}`];
+        const back = data.routes[`${dest.code}-${data.origin}`];
+        if (!out && !back) { missing.push(dest); continue; }
+        const dirs = [['가는 편 · 인천 → ' + dest.name, out], ['오는 편 · ' + dest.name + ' → 인천', back]];
+        let total = 0, body = '';
+        for (const [title, route] of dirs) {
+          let lines = '';
+          for (const c of shown) {
+            const ds = openDates(route, c) || [];
+            if (!ds.length) continue;
+            total += ds.length;
+            const groups = compressDates(ds).map((g) => `<span class="m"><b>${monthName(g.ym)}</b>${g.text}</span>`).join(' ');
+            lines += `<div class="cls-line"><span class="tag ${c}">${c}</span><span class="cnt">${ds.length}일</span><span class="dates">${groups}</span></div>`;
+          }
+          const stale = route?.staleMonths?.length ? ` <span class="stale">(${route.staleMonths.length}개월 수집 실패)</span>` : '';
+          body += `<div class="dir"><div class="dir-title">${esc(title)}${stale}</div>${lines || `<div class="nothing">${route ? '선택한 좌석 없음' : '아직 수집 안 됨'}</div>`}</div>`;
+        }
+        if (!total) { none.push(dest); continue; }
+        cards += `<article class="city-card"><h3><span>${esc(dest.name)} <small>${esc(dest.code)}</small></span><small>왕복 합계 ${total}일</small></h3>${body}</article>`;
+      }
+      if (cards) html += `<h2 class="region-title">${esc(region.name)}</h2><div class="cities">${cards}</div>`;
+    }
+    $('summary').innerHTML = html || '<div class="empty">선택한 좌석이 열린 도시가 없어요.</div>';
+    $('noneCard').hidden = !none.length;
+    $('noneList').innerHTML = none.map((d) => `<span>${esc(d.name)} ${esc(d.code)}</span>`).join('');
+    $('missingCard').hidden = !missing.length;
+    $('missingList').innerHTML = missing.map((d) => `<span>${esc(d.name)} ${esc(d.code)}</span>`).join('');
+  }
+
   function renderControls() {
+    $('view').innerHTML = [['summary', '도시별 요약'], ['calendar', '달력']].map(([id, name]) =>
+      `<button data-v="${id}" aria-pressed="${state.view === id}">${name}</button>`).join('');
+    $('monthNav').hidden = state.view !== 'calendar';
     const regions = [{ id: 'all', name: '전체' }, ...data.regions];
     $('region').innerHTML = regions.map((r) => `<button data-r="${esc(r.id)}" aria-pressed="${state.region === r.id}">${esc(r.name)}</button>`).join('');
     $('classes').innerHTML = ['F', 'P', 'U'].map((c) =>
@@ -220,7 +323,11 @@
   }
 
   function render() {
-    renderControls(); renderGrid('out'); renderGrid('in'); renderChanges();
+    renderControls(); renderChanges();
+    $('summaryView').hidden = state.view !== 'summary';
+    $('calendarView').hidden = state.view !== 'calendar';
+    if (state.view === 'summary') { renderSummary(); return; }
+    renderGrid('out'); renderGrid('in');
     // In the current month, start the grid at today rather than at past (empty) days.
     const todayDay = data.today.startsWith(data.months[state.monthIdx]) ? +data.today.slice(6) : 1;
     for (const id of ['outGrid', 'inGrid']) {
@@ -244,6 +351,8 @@
   }
 
   document.addEventListener('click', (e) => {
+    const v = e.target.closest('[data-v]');
+    if (v) { state.view = v.dataset.v; save(); render(); return; }
     const r = e.target.closest('[data-r]');
     if (r) { state.region = r.dataset.r; save(); render(); return; }
     const c = e.target.closest('[data-c]');

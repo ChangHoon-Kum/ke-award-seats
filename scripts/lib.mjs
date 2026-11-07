@@ -111,6 +111,37 @@ export function fmtDate(yyyymmdd) {
   return `${y % 100}/${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}(${wd})`;
 }
 
+/** Sorted future dates where class `cls` is open on any flight. */
+export function openDatesOf(days, cls, today) {
+  return Object.entries(days || {})
+    .filter(([d, fl]) => d >= today && fl.some((f) => f[2].includes(cls)))
+    .map(([d]) => d)
+    .sort();
+}
+
+/** ["20261107","20261108","20261109","20261201"] -> "11월 7–9 · 12월 1" (year shown when it differs from today's). */
+export function formatDateGroups(dates, today) {
+  const byMonth = new Map();
+  for (const d of dates) {
+    const ym = d.slice(0, 6);
+    if (!byMonth.has(ym)) byMonth.set(ym, []);
+    byMonth.get(ym).push(+d.slice(6));
+  }
+  const out = [];
+  for (const [ym, days] of byMonth) {
+    const parts = [];
+    let s = days[0]; let p = days[0];
+    for (const x of [...days.slice(1), null]) {
+      if (x === p + 1) { p = x; continue; }
+      parts.push(s === p ? `${s}` : p === s + 1 ? `${s}, ${p}` : `${s}–${p}`);
+      s = p = x;
+    }
+    const name = (ym.slice(0, 4) !== today.slice(0, 4) ? `${ym.slice(2, 4)}년 ` : '') + `${+ym.slice(4, 6)}월`;
+    out.push(`${name} ${parts.join(', ')}`);
+  }
+  return out.join(' · ');
+}
+
 /** Per-direction summary: number of future days with F / P open, and the nearest such date. */
 export function summarizeDirection(days, today) {
   const s = { F: 0, P: 0, firstF: null, firstP: null };
@@ -174,21 +205,35 @@ export function buildDailyReport({ routes, regions, origin, groups, meta }) {
   }
   L.push('');
 
-  const shortDate = (d) => (d ? fmtDate(d) : '-');
-  for (const [dir, title] of [['out', '가는 편 · 인천 출발'], ['in', '오는 편 · 인천 도착']]) {
-    L.push(`## 노선별 현황 — ${title}`);
-    L.push('');
-    L.push('일등석(보너스/승급)·프레스티지 보너스 좌석이 열린 **날 수**(향후 12개월)와 가장 가까운 날짜예요.');
-    L.push('');
-    L.push('| 지역 | 도시 | 일등석 날 수 | 가장 가까운 일등석 | 프레스티지 날 수 | 가장 가까운 프레스티지 |');
-    L.push('|---|---|---:|---|---:|---|');
-    for (const region of regions) {
-      for (const d of region.destinations) {
-        const key = dir === 'out' ? `${origin}-${d.code}` : `${d.code}-${origin}`;
-        const s = summarizeDirection(routes[key]?.days, meta.today);
-        L.push(`| ${region.name} | ${d.name} (${d.code}) | ${s.F} | ${shortDate(s.firstF)} | ${s.P} | ${shortDate(s.firstP)} |`);
+  L.push('## 도시별 좌석 있는 날짜 (향후 12개월)');
+  L.push('');
+  L.push('F = 일등석 보너스/승급, P = 프레스티지 보너스. 연속된 날은 `4–6`처럼 묶었어요.');
+  L.push('');
+  const none = []; const missing = [];
+  for (const region of regions) {
+    const blocks = [];
+    for (const d of region.destinations) {
+      const out = routes[`${origin}-${d.code}`];
+      const back = routes[`${d.code}-${origin}`];
+      if (!out && !back) { missing.push(`${d.name}(${d.code})`); continue; }
+      const lines = [];
+      for (const [label, route] of [['가는 편', out], ['오는 편', back]]) {
+        for (const c of ['F', 'P']) {
+          const ds = openDatesOf(route?.days, c, meta.today);
+          if (ds.length) lines.push(`- ${label} **${c}** ${ds.length}일 — ${formatDateGroups(ds, meta.today)}`);
+        }
       }
+      if (!lines.length) { none.push(`${d.name}(${d.code})`); continue; }
+      blocks.push(`#### ${d.name} (${d.code})\n\n${lines.join('\n')}\n`);
     }
+    if (blocks.length) { L.push(`### ${region.name}`); L.push(''); L.push(...blocks); }
+  }
+  L.push('### 좌석이 없는 도시');
+  L.push('');
+  L.push(none.length ? `가는 편·오는 편 모두 일등석·프레스티지 좌석이 없어요: ${none.join(', ')}` : '수집한 도시 중에는 없어요.');
+  L.push('');
+  if (missing.length) {
+    L.push(`> 아직 수집하지 않은 도시: ${missing.join(', ')}`);
     L.push('');
   }
   L.push('---');
