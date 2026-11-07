@@ -63,6 +63,14 @@ async function fetchMonth(from, to, yyyymm) {
   throw lastErr;
 }
 
+function readmeFromReport(report) {
+  return [
+    '> 🔄 이 화면은 매일 밤 자동으로 바뀌는 **최신 데일리 리포트**예요. 지난 리포트는 [`reports/`](reports/), 설정·구조 안내는 [`SETUP.md`](SETUP.md)에 있어요.',
+    '',
+    report,
+  ].join('\n');
+}
+
 async function sendTelegram(text) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -187,6 +195,8 @@ async function main() {
       await fs.mkdir(REPORTS_DIR, { recursive: true });
       await fs.writeFile(path.join(REPORTS_DIR, `${dateKst}.md`), report);
       await fs.writeFile(path.join(REPORTS_DIR, 'latest.md'), report);
+      // The repository front page shows README.md, so it carries the latest report too.
+      await fs.writeFile(path.join(ROOT, 'README.md'), readmeFromReport(report));
     }
   }
 
