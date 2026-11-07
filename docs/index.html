@@ -84,6 +84,7 @@
 <header>
   <h1>대한항공 보너스 좌석 보드 <span class="sub">(비공식)</span></h1>
   <div class="sub" id="asof">데이터를 불러오는 중…</div>
+  <div class="sub" style="margin-top:4px"><a id="reportLink" href="#" target="_blank" rel="noopener" style="color:inherit">📄 데일리 리포트 보기</a></div>
 </header>
 <main>
   <div class="bar" role="toolbar" aria-label="보기 설정">
@@ -258,6 +259,15 @@
   $('next').onclick = () => { if (state.monthIdx < data.months.length - 1) { state.monthIdx++; render(); } };
   $('dClose').onclick = () => $('detail').close();
   $('detail').addEventListener('click', (e) => { if (e.target === $('detail')) $('detail').close(); });
+
+  // owner.github.io/repo/ -> github.com/owner/repo/blob/main/reports/latest.md
+  (() => {
+    const owner = location.hostname.endsWith('.github.io') ? location.hostname.split('.')[0] : '';
+    const repo = location.pathname.split('/').filter(Boolean)[0] || '';
+    const a = $('reportLink');
+    if (owner && repo) a.href = `https://github.com/${owner}/${repo}/blob/main/reports/latest.md`;
+    else a.style.display = 'none';
+  })();
 
   const timer = setTimeout(() => { if (!data) $('asof').textContent = '데이터를 불러오지 못했어요. 새로고침해 보세요.'; }, 15000);
   Promise.all([
