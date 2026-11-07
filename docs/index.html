@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>대한항공 보너스 좌석 보드 (비공식)</title>
+<meta name="description" content="대한항공 미주·유럽 일등석/프레스티지 보너스 좌석 현황을 한 화면에서 보는 비공식 보드">
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --ink: #1b2330; --muted: #6b7686; --line: #e3e7ee;
+    --f: #b8860b; --f-bg: #fff3d1; --p: #1f5fbf; --p-bg: #e3edff; --u: #5a7a99; --u-bg: #eef2f6;
+    --weekend: #c0392b; --focus: #1f5fbf;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #11151b; --card: #1a2029; --ink: #e8edf3; --muted: #93a0b2; --line: #2b3441;
+      --f: #f2c14e; --f-bg: #3a3017; --p: #7fb0ff; --p-bg: #1c2c47; --u: #a7bdd3; --u-bg: #26303c; --weekend: #ff8a7a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; }
+  header { padding: 20px 16px 8px; max-width: 1400px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .sub b { color: var(--ink); font-weight: 600; }
+  main { max-width: 1400px; margin: 0 auto; padding: 0 16px 48px; }
+  .bar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 10px 0; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; border-bottom: 1px solid var(--line); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--card); }
+  .seg button { border: 0; background: none; padding: 6px 12px; font: inherit; color: var(--muted); cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
+  .chip { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 5px 11px; font: inherit; cursor: pointer; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+  .chip[aria-pressed="true"] { color: var(--ink); border-color: currentColor; }
+  .chip .dot { width: 10px; height: 10px; border-radius: 3px; }
+  .month { display: inline-flex; align-items: center; gap: 4px; }
+  .month button { border: 1px solid var(--line); background: var(--card); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; font-size: 16px; color: var(--ink); }
+  .month button:disabled { opacity: .35; cursor: default; }
+  .month strong { min-width: 96px; text-align: center; font-size: 15px; }
+  button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  section.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; margin-top: 16px; overflow: hidden; }
+  section.card > h2 { font-size: 15px; margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  section.card > h2 small { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .scroll { overflow-x: auto; }
+  table.grid { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
+  .grid th, .grid td { border-bottom: 1px solid var(--line); text-align: center; padding: 0; }
+  .grid thead th { font-weight: 500; font-size: 11px; color: var(--muted); padding: 6px 0; position: sticky; top: 0; background: var(--card); }
+  .grid thead th.we { color: var(--weekend); }
+  .grid th.city { position: sticky; left: 0; z-index: 2; background: var(--card); text-align: left; padding: 6px 10px; min-width: 112px; border-right: 1px solid var(--line); font-weight: 600; font-size: 13px; }
+  .grid th.city small { display: block; color: var(--muted); font-weight: 400; font-size: 11px; }
+  .grid thead th.city { z-index: 3; }
+  .grid td { width: 34px; min-width: 34px; height: 40px; }
+  .cell { width: 100%; height: 100%; border: 0; background: none; padding: 2px 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font: inherit; }
+  .cell:hover { background: var(--bg); }
+  .cell.none { cursor: default; }
+  .cell.full::after { content: ""; width: 6px; height: 1px; background: var(--line); }
+  .tag { font-size: 10px; font-weight: 700; line-height: 1; padding: 2px 4px; border-radius: 4px; }
+  .tag.F { color: var(--f); background: var(--f-bg); }
+  .tag.P { color: var(--p); background: var(--p-bg); }
+  .tag.U { color: var(--u); background: var(--u-bg); }
+  .stale { color: var(--weekend); font-size: 11px; font-weight: 400; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 12px; padding: 10px 14px; }
+  .legend span { display: inline-flex; gap: 6px; align-items: center; }
+  .empty { padding: 32px 14px; color: var(--muted); text-align: center; }
+  ul.changes { list-style: none; margin: 0; padding: 0; }
+  ul.changes li { padding: 9px 14px; border-bottom: 1px solid var(--line); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  ul.changes li:last-child { border-bottom: 0; }
+  ul.changes .when { color: var(--muted); font-size: 12px; margin-left: auto; }
+  dialog { border: 1px solid var(--line); border-radius: 14px; padding: 0; width: min(420px, 94vw); background: var(--card); color: var(--ink); }
+  dialog::backdrop { background: rgba(0,0,0,.35); }
+  dialog header { padding: 14px 16px 8px; }
+  dialog h3 { margin: 0; font-size: 16px; }
+  dialog .flights { padding: 4px 16px 8px; }
+  dialog .fl { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); gap: 8px; }
+  dialog .fl:last-child { border-bottom: 0; }
+  dialog .fl .tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  dialog .tag { font-size: 12px; padding: 3px 7px; }
+  dialog .tag.E { color: var(--muted); background: var(--bg); }
+  dialog footer { padding: 12px 16px 16px; display: flex; gap: 8px; justify-content: flex-end; }
+  .btn { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; text-decoration: none; }
+  .btn.primary { background: var(--ink); color: var(--card); border-color: var(--ink); }
+  @media (max-width: 600px) { .grid th.city { min-width: 92px; padding: 6px 8px; } main, header { padding-left: 10px; padding-right: 10px; } }
+  .note { color: var(--muted); font-size: 12px; margin-top: 18px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<header>
+  <h1>대한항공 보너스 좌석 보드 <span class="sub">(비공식)</span></h1>
+  <div class="sub" id="asof">데이터를 불러오는 중…</div>
+</header>
+<main>
+  <div class="bar" role="toolbar" aria-label="보기 설정">
+    <div class="seg" id="region" aria-label="지역"></div>
+    <div id="classes" style="display:flex;gap:6px" aria-label="좌석"></div>
+    <div class="month">
+      <button id="prev" aria-label="이전 달">‹</button>
+      <strong id="monthLabel">-</strong>
+      <button id="next" aria-label="다음 달">›</button>
+    </div>
+  </div>
+
+  <section class="card" id="outCard">
+    <h2><span>가는 편 · 인천 출발</span><small id="outSummary"></small></h2>
+    <div class="scroll" id="outGrid"></div>
+  </section>
+
+  <section class="card" id="inCard">
+    <h2><span>오는 편 · 인천 도착</span><small id="inSummary"></small></h2>
+    <div class="scroll" id="inGrid"></div>
+  </section>
+
+  <div class="legend">
+    <span><span class="tag F">F</span> 일등석 보너스/승급</span>
+    <span><span class="tag P">P</span> 프레스티지 보너스</span>
+    <span><span class="tag U">U</span> 프레스티지 좌석승급</span>
+    <span>— 운항하지만 선택한 좌석 없음 · 빈칸은 운항편 없음</span>
+  </div>
+
+  <section class="card">
+    <h2><span>최근 새로 열린 좌석</span><small>최근 14일, 선택한 지역·좌석 기준</small></h2>
+    <ul class="changes" id="changes"></ul>
+  </section>
+
+  <p class="note">
+    대한항공 홈페이지 ‘보너스 좌석 조회’의 공개 스냅샷(하루 1회 갱신, 향후 약 360일)을 매일 한 번 모아 보여주는 개인용 비공식 페이지입니다.
+    실시간 정보가 아니며 대한항공과 관계가 없습니다. 예약 전 반드시 공식 홈페이지의 마일리지 예매에서 확인하세요.
+  </p>
+</main>
+
+<dialog id="detail" aria-labelledby="dTitle">
+  <header><h3 id="dTitle"></h3><div class="sub" id="dSub"></div></header>
+  <div class="flights" id="dFlights"></div>
+  <footer>
+    <a class="btn" id="dOfficial" target="_blank" rel="noopener" href="https://www.koreanair.com/booking/book-and-manage/award-seat-availability">공식 조회</a>
+    <button class="btn primary" id="dClose">닫기</button>
+  </footer>
+</dialog>
+
+<script>
+(() => {
+  const LABEL = { F: '일등석', P: '프레스티지', U: '프레스티지 승급', E: '일반석' };
+  const WD = ['일', '월', '화', '수', '목', '금', '토'];
+  const store = (() => { try { const s = window.localStorage; s.setItem('_t', '1'); s.removeItem('_t'); return s; } catch { return null; } })();
+  const saved = (() => { try { return JSON.parse(store?.getItem('ke-board') || '{}'); } catch { return {}; } })();
+  const state = { region: saved.region || 'all', classes: saved.classes || ['F', 'P'], monthIdx: 0 };
+  let data = null, changes = [];
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const save = () => { try { store?.setItem('ke-board', JSON.stringify({ region: state.region, classes: state.classes })); } catch {} };
+  const fmtYM = (ym) => `${ym.slice(0, 4)}년 ${+ym.slice(4, 6)}월`;
+  const fmtD = (d) => { const dt = new Date(Date.UTC(+d.slice(0, 4), +d.slice(4, 6) - 1, +d.slice(6, 8))); return `${+d.slice(4, 6)}/${+d.slice(6, 8)}(${WD[dt.getUTCDay()]})`; };
+  const kst = (iso) => new Date(iso).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  function regionDests() {
+    return data.regions.filter((r) => state.region === 'all' || r.id === state.region).flatMap((r) => r.destinations);
+  }
+
+  function renderControls() {
+    const regions = [{ id: 'all', name: '전체' }, ...data.regions];
+    $('region').innerHTML = regions.map((r) => `<button data-r="${esc(r.id)}" aria-pressed="${state.region === r.id}">${esc(r.name)}</button>`).join('');
+    $('classes').innerHTML = ['F', 'P', 'U'].map((c) =>
+      `<button class="chip" data-c="${c}" aria-pressed="${state.classes.includes(c)}"><span class="tag ${c}">${c}</span>${LABEL[c]}</button>`).join('');
+    const months = data.months;
+    $('monthLabel').textContent = fmtYM(months[state.monthIdx]);
+    $('prev').disabled = state.monthIdx === 0;
+    $('next').disabled = state.monthIdx >= months.length - 1;
+  }
+
+  function renderGrid(dir) {
+    const ym = data.months[state.monthIdx];
+    const y = +ym.slice(0, 4), m = +ym.slice(4, 6);
+    const nDays = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const dates = Array.from({ length: nDays }, (_, i) => `${ym}${String(i + 1).padStart(2, '0')}`);
+    const dests = regionDests();
+    let head = '<thead><tr><th class="city" scope="col">도시</th>';
+    for (const d of dates) {
+      const wd = new Date(Date.UTC(y, m - 1, +d.slice(6))).getUTCDay();
+      head += `<th scope="col" class="${wd === 0 || wd === 6 ? 'we' : ''}">${+d.slice(6)}<br>${WD[wd]}</th>`;
+    }
+    head += '</tr></thead>';
+    let body = '<tbody>';
+    let totalDays = 0;
+    for (const dest of dests) {
+      const key = dir === 'out' ? `${data.origin}-${dest.code}` : `${dest.code}-${data.origin}`;
+      const route = data.routes[key];
+      let count = 0;
+      let cells = '';
+      for (const d of dates) {
+        const flights = route?.days?.[d];
+        if (!flights || d < data.today) { cells += `<td><span class="cell none" aria-hidden="true"></span></td>`; continue; }
+        if (!flights.length) { cells += `<td><span class="cell none"></span></td>`; continue; }
+        const open = new Set();
+        for (const [, , cls] of flights) for (const c of cls) if (state.classes.includes(c)) open.add(c);
+        const tags = ['F', 'P', 'U'].filter((c) => open.has(c));
+        if (tags.length) count++;
+        const label = `${dest.name} ${fmtD(d)} ${tags.length ? tags.map((c) => LABEL[c]).join(', ') : '선택한 좌석 없음'}`;
+        cells += `<td><button class="cell ${tags.length ? '' : 'full'}" data-key="${key}" data-date="${d}" aria-label="${esc(label)}">${tags.map((c) => `<span class="tag ${c}">${c}</span>`).join('')}</button></td>`;
+      }
+      totalDays += count;
+      const stale = route?.staleMonths?.includes(ym) ? '<small class="stale">이번 달 수집 실패 · 이전 데이터</small>' : '';
+      body += `<tr><th class="city" scope="row">${esc(dest.name)} <small>${esc(dest.code)} · ${count}일</small>${stale}</th>${cells}</tr>`;
+    }
+    body += '</tbody>';
+    $(dir === 'out' ? 'outGrid' : 'inGrid').innerHTML = dests.length ? `<table class="grid">${head}${body}</table>` : '<div class="empty">도시가 없어요</div>';
+    $(dir === 'out' ? 'outSummary' : 'inSummary').textContent = `선택 좌석이 있는 날 합계 ${totalDays}일`;
+  }
+
+  function renderChanges() {
+    const codes = new Set(regionDests().map((d) => d.code));
+    const cutoff = new Date(Date.now() - 14 * 86400000).toISOString();
+    const rows = changes
+      .filter((c) => c.seenAt >= cutoff && c.date >= data.today && state.classes.includes(c.cls))
+      .filter((c) => { const [a, b] = c.key.split('-'); return codes.has(a) || codes.has(b); })
+      .sort((a, b) => b.seenAt.localeCompare(a.seenAt) || a.date.localeCompare(b.date))
+      .slice(0, 200);
+    $('changes').innerHTML = rows.length ? rows.map((c) => {
+      const r = data.routes[c.key];
+      return `<li><span class="tag ${c.cls}">${c.cls}</span><b>${esc(r ? `${r.fromName} → ${r.toName}` : c.key)}</b>
+        <span>${fmtD(c.date)} ${esc(c.flight)} ${esc(c.time)}</span><span class="when">${kst(c.seenAt)} 발견</span></li>`;
+    }).join('') : '<li class="empty" style="justify-content:center">아직 없어요. 첫 수집 다음 날부터 쌓여요.</li>';
+  }
+
+  function render() {
+    renderControls(); renderGrid('out'); renderGrid('in'); renderChanges();
+    // In the current month, start the grid at today rather than at past (empty) days.
+    const todayDay = data.today.startsWith(data.months[state.monthIdx]) ? +data.today.slice(6) : 1;
+    for (const id of ['outGrid', 'inGrid']) {
+      const wrap = $(id); const th = wrap.querySelectorAll('thead th')[todayDay];
+      const city = wrap.querySelector('thead th.city');
+      wrap.scrollLeft = th && city && todayDay > 1 ? th.offsetLeft - city.offsetWidth : 0;
+    }
+  }
+
+  function openDetail(key, date) {
+    const r = data.routes[key];
+    const flights = r?.days?.[date] || [];
+    $('dTitle').textContent = `${r.fromName} → ${r.toName}`;
+    $('dSub').textContent = `${fmtD(date)} · ${kst(r.updatedAt || data.collectedAt)} 수집 기준`;
+    $('dFlights').innerHTML = flights.map(([fn, t, cls]) => {
+      const tags = ['F', 'P', 'U', 'E'].filter((c) => cls.includes(c));
+      return `<div class="fl"><div><b>${esc(fn)}</b> <span class="sub">${esc(t)} 출발</span></div>
+        <div class="tags">${tags.length ? tags.map((c) => `<span class="tag ${c}">${LABEL[c]}</span>`).join('') : '<span class="sub">보너스 좌석 없음</span>'}</div></div>`;
+    }).join('') || '<div class="empty">운항편 없음</div>';
+    $('detail').showModal();
+  }
+
+  document.addEventListener('click', (e) => {
+    const r = e.target.closest('[data-r]');
+    if (r) { state.region = r.dataset.r; save(); render(); return; }
+    const c = e.target.closest('[data-c]');
+    if (c) {
+      const k = c.dataset.c;
+      state.classes = state.classes.includes(k) ? state.classes.filter((x) => x !== k) : [...state.classes, k];
+      save(); render(); return;
+    }
+    const cell = e.target.closest('button.cell[data-key]');
+    if (cell) openDetail(cell.dataset.key, cell.dataset.date);
+  });
+  $('prev').onclick = () => { if (state.monthIdx > 0) { state.monthIdx--; render(); } };
+  $('next').onclick = () => { if (state.monthIdx < data.months.length - 1) { state.monthIdx++; render(); } };
+  $('dClose').onclick = () => $('detail').close();
+  $('detail').addEventListener('click', (e) => { if (e.target === $('detail')) $('detail').close(); });
+
+  const timer = setTimeout(() => { if (!data) $('asof').textContent = '데이터를 불러오지 못했어요. 새로고침해 보세요.'; }, 15000);
+  Promise.all([
+    fetch('data/latest.json', { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : null)),
+    fetch('data/changes.json', { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : [])).catch(() => []),
+  ]).then(([latest, ch]) => {
+    clearTimeout(timer);
+    if (!latest) { $('asof').textContent = '아직 첫 수집 전이에요. 수집이 끝나면 여기에 표시돼요.'; return; }
+    data = latest; changes = ch || [];
+    const failed = data.stats?.failed || 0;
+    $('asof').innerHTML = `<b>${kst(data.collectedAt)}</b> 수집 · 미주·유럽 ${regionCount()}개 도시 왕복 · 향후 ${data.months.length}개월` +
+      (failed ? ` · <span class="stale">일부 ${failed}건 수집 실패</span>` : '');
+    render();
+  }).catch(() => { clearTimeout(timer); $('asof').textContent = '데이터를 불러오지 못했어요. 새로고침해 보세요.'; });
+
+  function regionCount() { return data.regions.reduce((s, r) => s + r.destinations.length, 0); }
+})();
+</script>
+</body>
+</html>

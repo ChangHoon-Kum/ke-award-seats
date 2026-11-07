@@ -1,0 +1,47 @@
+{
+  "origin": "ICN",
+  "originName": "서울/인천",
+  "monthsAhead": 12,
+  "alertClasses": ["F", "P"],
+  "requestDelayMs": [1500, 3000],
+  "regions": [
+    {
+      "id": "america",
+      "name": "미주",
+      "destinations": [
+        { "code": "JFK", "name": "뉴욕" },
+        { "code": "LAX", "name": "로스앤젤레스" },
+        { "code": "SFO", "name": "샌프란시스코" },
+        { "code": "SEA", "name": "시애틀" },
+        { "code": "LAS", "name": "라스베이거스" },
+        { "code": "ORD", "name": "시카고" },
+        { "code": "ATL", "name": "애틀랜타" },
+        { "code": "DFW", "name": "댈러스" },
+        { "code": "BOS", "name": "보스턴" },
+        { "code": "IAD", "name": "워싱턴" },
+        { "code": "YVR", "name": "밴쿠버" },
+        { "code": "YYZ", "name": "토론토" },
+        { "code": "HNL", "name": "호놀룰루" }
+      ]
+    },
+    {
+      "id": "europe",
+      "name": "유럽",
+      "destinations": [
+        { "code": "CDG", "name": "파리" },
+        { "code": "LHR", "name": "런던" },
+        { "code": "FRA", "name": "프랑크푸르트" },
+        { "code": "FCO", "name": "로마" },
+        { "code": "MXP", "name": "밀라노" },
+        { "code": "AMS", "name": "암스테르담" },
+        { "code": "ZRH", "name": "취리히" },
+        { "code": "VIE", "name": "비엔나" },
+        { "code": "PRG", "name": "프라하" },
+        { "code": "BUD", "name": "부다페스트" },
+        { "code": "MAD", "name": "마드리드" },
+        { "code": "LIS", "name": "리스본" },
+        { "code": "IST", "name": "이스탄불" }
+      ]
+    }
+  ]
+}
