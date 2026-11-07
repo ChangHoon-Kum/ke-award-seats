@@ -15,6 +15,7 @@
 | `scripts/collect.mjs` | 수집 → `docs/data/latest.json`, 새로 열린 좌석 → `docs/data/changes.json` + 텔레그램 |
 | `scripts/lib.mjs` | 응답 정규화, 변화 감지, 메시지 생성 (테스트: `node --test test/lib.test.mjs`) |
 | `docs/index.html` | 공유 페이지 |
+| `reports/YYYY-MM-DD.md` | 매일 쌓이는 데일리 리포트 (새로 열린 좌석 + 노선별 요약). 최신본은 [`reports/latest.md`](reports/latest.md) |
 | `.github/workflows/collect.yml` | 매일 23:47 KST 실행, 수동 실행 시 `telegram-test` / `quick` 모드 |
 
 ## 설정

@@ -12,7 +12,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  dirKey, monthList, todayKst, normalizeResponse, diffDirection, buildAlertMessages,
+  dirKey, monthList, todayKst, normalizeResponse, diffDirection, buildAlertMessages, buildDailyReport,
 } from './lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -20,6 +20,7 @@ const DATA_DIR = path.join(ROOT, 'docs', 'data');
 const LATEST = path.join(DATA_DIR, 'latest.json');
 const CHANGES = path.join(DATA_DIR, 'changes.json');
 const API = 'https://www.koreanair.com/api/hmp/bonusSeatView/bonusSeatView';
+const REPORTS_DIR = path.join(ROOT, 'reports');
 const CHANGES_KEEP_DAYS = 45;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -174,6 +175,19 @@ async function main() {
   if (ok > 0) {
     await fs.writeFile(LATEST, JSON.stringify(latest));
     await fs.writeFile(CHANGES, JSON.stringify(keptChanges));
+
+    // Daily markdown report (skipped for partial test runs).
+    if (!only) {
+      const kstStr = (d) => d.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+      const dateKst = `${today.slice(0, 4)}-${today.slice(4, 6)}-${today.slice(6, 8)}`;
+      const report = buildDailyReport({
+        routes, regions: cfg.regions, origin: cfg.origin, groups: alertGroups,
+        meta: { dateKst, collectedAtKst: kstStr(now), ok, failed, firstRun: !prev, pageUrl, months, today },
+      });
+      await fs.mkdir(REPORTS_DIR, { recursive: true });
+      await fs.writeFile(path.join(REPORTS_DIR, `${dateKst}.md`), report);
+      await fs.writeFile(path.join(REPORTS_DIR, 'latest.md'), report);
+    }
   }
 
   const attempted = ok + failed;

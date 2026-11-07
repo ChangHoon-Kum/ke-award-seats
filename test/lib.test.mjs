@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeResponse, diffDirection, buildAlertMessages, monthList, todayKst, fmtDate } from '../scripts/lib.mjs';
+import { normalizeResponse, diffDirection, buildAlertMessages, buildDailyReport, monthList, todayKst, fmtDate } from '../scripts/lib.mjs';
 
 // Shape copied from a real bonusSeatView response (ICN-LAX, 2027-03), trimmed.
 const sample = {
@@ -75,6 +75,23 @@ test('buildAlertMessages merges classes per flight and splits long output', () =
   assert.match(split.at(-1), /생략/);
   for (const m of split) assert.ok(m.length <= 4096, `len ${m.length}`);
   assert.deepEqual(buildAlertMessages([], {}), []);
+});
+
+test('buildDailyReport: first run, new seats, and summary tables', () => {
+  const routes = {
+    'ICN-LAX': { days: { '20270302': [['KE017', '14:30', 'FPU']], '20270305': [['KE011', '19:40', 'P']] }, staleMonths: [] },
+    'LAX-ICN': { days: {}, staleMonths: ['202703'] },
+  };
+  const regions = [{ id: 'america', name: '미주', destinations: [{ code: 'LAX', name: '로스앤젤레스' }] }];
+  const meta = { dateKst: '2026-11-08', collectedAtKst: '2026. 11. 08. 23:50', ok: 10, failed: 1, pageUrl: 'https://p/', months: ['202611', '202710'], today: '20261108' };
+  const first = buildDailyReport({ routes, regions, origin: 'ICN', groups: [], meta: { ...meta, firstRun: true } });
+  assert.match(first, /첫 수집/);
+  assert.match(first, /\| 미주 \| 로스앤젤레스 \(LAX\) \| 1 \| 27\/03\/02\(화\) \| 2 \| 27\/03\/02\(화\) \|/);
+  assert.match(first, /LAX-ICN\(1개월\)/);
+  const groups = [{ fromName: '서울/인천', toName: '로스앤젤레스', items: [{ date: '20270302', flight: 'KE017', time: '14:30', cls: 'F' }, { date: '20270302', flight: 'KE017', time: '14:30', cls: 'P' }] }];
+  const next = buildDailyReport({ routes, regions, origin: 'ICN', groups, meta: { ...meta, firstRun: false } });
+  assert.match(next, /새로 열린 일등석·프레스티지 좌석 \(2건\)/);
+  assert.match(next, /\| 27\/03\/02\(화\) \| KE017 \| 14:30 \| 일등석, 프레스티지 \|/);
 });
 
 test('date helpers use KST', () => {

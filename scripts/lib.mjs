@@ -111,6 +111,92 @@ export function fmtDate(yyyymmdd) {
   return `${y % 100}/${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}(${wd})`;
 }
 
+/** Per-direction summary: number of future days with F / P open, and the nearest such date. */
+export function summarizeDirection(days, today) {
+  const s = { F: 0, P: 0, firstF: null, firstP: null };
+  for (const [date, flights] of Object.entries(days || {})) {
+    if (date < today) continue;
+    const open = flights.map((f) => f[2]).join('');
+    for (const c of ['F', 'P']) {
+      if (open.includes(c)) {
+        s[c]++;
+        const k = c === 'F' ? 'firstF' : 'firstP';
+        if (!s[k] || date < s[k]) s[k] = date;
+      }
+    }
+  }
+  return s;
+}
+
+/**
+ * Markdown daily report.
+ * routes: latest.routes; regions: cfg regions; groups: alert groups ({key, fromName, toName, items});
+ * meta: { dateKst, collectedAtKst, ok, failed, firstRun, pageUrl, months }
+ */
+export function buildDailyReport({ routes, regions, origin, groups, meta }) {
+  const L = [];
+  const total = groups.reduce((n, g) => n + g.items.length, 0);
+  L.push(`# 대한항공 보너스 좌석 데일리 리포트 · ${meta.dateKst}`);
+  L.push('');
+  L.push(`- 수집 시각: ${meta.collectedAtKst} (대한항공 '보너스 좌석 조회' 일 1회 스냅샷 기준, 실시간 아님)`);
+  L.push(`- 조회 범위: 미주·유럽 ${regions.reduce((n, r) => n + r.destinations.length, 0)}개 도시 왕복, ${meta.months[0].slice(0, 4)}.${meta.months[0].slice(4)} ~ ${meta.months.at(-1).slice(0, 4)}.${meta.months.at(-1).slice(4)}`);
+  L.push(`- 요청 결과: 성공 ${meta.ok} / 실패 ${meta.failed}`);
+  const staleKeys = Object.entries(routes).filter(([, r]) => r.staleMonths?.length).map(([k, r]) => `${k}(${r.staleMonths.length}개월)`);
+  if (staleKeys.length) L.push(`- ⚠️ 수집 실패로 이전 데이터를 유지한 노선: ${staleKeys.join(', ')}`);
+  if (meta.pageUrl) L.push(`- 전체 달력 보기: ${meta.pageUrl}`);
+  L.push('');
+
+  L.push(`## 새로 열린 일등석·프레스티지 좌석 (${total}건)`);
+  L.push('');
+  if (meta.firstRun) {
+    L.push('첫 수집이라 비교할 전날 데이터가 없어요. 오늘 데이터를 기준점으로 저장했고, 내일부터 새로 열린 좌석을 표시해요.');
+  } else if (!total) {
+    L.push('전날 대비 새로 열린 좌석이 없어요.');
+  } else {
+    for (const g of groups) {
+      if (!g.items.length) continue;
+      L.push(`### ${g.fromName} → ${g.toName}`);
+      L.push('');
+      L.push('| 날짜 | 편명 | 출발 | 좌석 |');
+      L.push('|---|---|---|---|');
+      const merged = new Map();
+      for (const it of g.items) {
+        const k = `${it.date}|${it.flight}|${it.time}`;
+        if (!merged.has(k)) merged.set(k, { ...it, classes: [] });
+        merged.get(k).classes.push(CLASS_LABEL[it.cls] || it.cls);
+      }
+      const rows = [...merged.values()];
+      const MAX_ROWS = 40;
+      for (const r of rows.slice(0, MAX_ROWS)) L.push(`| ${fmtDate(r.date)} | ${r.flight} | ${r.time} | ${r.classes.join(', ')} |`);
+      if (rows.length > MAX_ROWS) L.push(`| … | 외 ${rows.length - MAX_ROWS}편 | | 페이지에서 확인 |`);
+      L.push('');
+    }
+  }
+  L.push('');
+
+  const shortDate = (d) => (d ? fmtDate(d) : '-');
+  for (const [dir, title] of [['out', '가는 편 · 인천 출발'], ['in', '오는 편 · 인천 도착']]) {
+    L.push(`## 노선별 현황 — ${title}`);
+    L.push('');
+    L.push('일등석(보너스/승급)·프레스티지 보너스 좌석이 열린 **날 수**(향후 12개월)와 가장 가까운 날짜예요.');
+    L.push('');
+    L.push('| 지역 | 도시 | 일등석 날 수 | 가장 가까운 일등석 | 프레스티지 날 수 | 가장 가까운 프레스티지 |');
+    L.push('|---|---|---:|---|---:|---|');
+    for (const region of regions) {
+      for (const d of region.destinations) {
+        const key = dir === 'out' ? `${origin}-${d.code}` : `${d.code}-${origin}`;
+        const s = summarizeDirection(routes[key]?.days, meta.today);
+        L.push(`| ${region.name} | ${d.name} (${d.code}) | ${s.F} | ${shortDate(s.firstF)} | ${s.P} | ${shortDate(s.firstP)} |`);
+      }
+    }
+    L.push('');
+  }
+  L.push('---');
+  L.push('비공식 개인용 리포트예요. 대한항공과 관계가 없고, 예약 전 공식 홈페이지의 마일리지 예매에서 꼭 확인하세요.');
+  L.push('');
+  return L.join('\n');
+}
+
 /**
  * Build Telegram messages (each under the 4096-char limit) for newly opened seats.
  * groups: [{ fromName, toName, items: [{date, flight, time, cls}] }]
