@@ -55,6 +55,8 @@ test('diffDirection: only newly opened watched classes, future dates, fetched mo
   // Date after prev's last date -> newly released, alerts
   const prevOld = { '20270301': [['KE017', '14:30', 'E']] };
   assert.equal(diffDirection(prevOld, next, { watch: ['F', 'P'], today: '20261107' }).length, 2);
+  // ...but not when prev was a partial run (quick mode): those dates were never fetched
+  assert.deepEqual(diffDirection(prevOld, next, { watch: ['F', 'P'], today: '20261107', prevFullWindow: false }), []);
   // Past dates ignored
   assert.deepEqual(diffDirection(prev, next, { watch: ['F', 'P'], today: '20270303' }), []);
 });

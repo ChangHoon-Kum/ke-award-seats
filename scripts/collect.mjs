@@ -155,7 +155,10 @@ async function main() {
       days: sortedDays,
     };
 
-    const items = diffDirection(prevDays, sortedDays, { watch: cfg.alertClasses, today, fetchedMonths });
+    // Was the previous data a full window (all months) or a partial test run?
+    const prevMonthCount = new Set(Object.keys(prevDays || {}).map((x) => x.slice(0, 6))).size;
+    const prevFullWindow = prevMonthCount >= cfg.monthsAhead - 1;
+    const items = diffDirection(prevDays, sortedDays, { watch: cfg.alertClasses, today, fetchedMonths, prevFullWindow });
     if (items.length) alertGroups.push({ key, fromName: d.fromName, toName: d.toName, items });
     console.log(`${key}: ${fetchedMonths.size}/${months.length} months ok, ${items.length} newly opened`);
   }

@@ -76,18 +76,19 @@ export function normalizeResponse(json) {
  * Only classes in `watch` count, only dates >= today, and only months that were actually fetched this run.
  * If prev has no entry at all for this direction (first run), returns [] so the first run never floods the chat.
  */
-export function diffDirection(prevDays, nextDays, { watch, today, fetchedMonths }) {
+export function diffDirection(prevDays, nextDays, { watch, today, fetchedMonths, prevFullWindow = true }) {
   if (!prevDays) return [];
   const prevDates = Object.keys(prevDays);
   if (!prevDates.length) return [];
   const prevMax = prevDates.reduce((a, b) => (a > b ? a : b));
+  // After a partial run (e.g. 'quick' with 2 months) dates past prevMax were simply never fetched, not newly released.
   const opened = [];
   for (const [date, flights] of Object.entries(nextDays)) {
     if (date < today) continue;
     if (fetchedMonths && !fetchedMonths.has(date.slice(0, 6))) continue;
     // A date missing from prev inside its range means it was never fetched before (e.g. a partial run):
     // no baseline, so no alert. Dates after prevMax are newly released at the end of the 360-day window.
-    if (!prevDays[date] && date <= prevMax) continue;
+    if (!prevDays[date] && (date <= prevMax || !prevFullWindow)) continue;
     const prevFlights = prevDays[date] || [];
     for (const [fn, t, open] of flights) {
       const before = prevFlights.find((p) => p[0] === fn && p[1] === t);
