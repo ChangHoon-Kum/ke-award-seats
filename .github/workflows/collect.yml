@@ -1,9 +1,9 @@
 name: 보너스 좌석 수집
 
 on:
-  schedule:
-    # 매일 23:47 KST (14:47 UTC). 대한항공 스냅샷은 매일 23:00 KST 기준으로 갱신됨.
-    - cron: '47 14 * * *'
+  # 2026-11-14: 대한항공이 요청을 전부 거부(HTTP 403)해서 예약 실행을 중단함. 수동 실행만 가능.
+  # schedule:
+  #   - cron: '47 14 * * *'
   workflow_dispatch:
     inputs:
       mode:
